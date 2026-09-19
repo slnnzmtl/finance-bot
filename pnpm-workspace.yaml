@@ -1,0 +1,3 @@
+# Single-package project; settings live here (pnpm 12+).
+# Skip freshness gate so locked deps install in CI/Docker.
+minimumReleaseAge: 0

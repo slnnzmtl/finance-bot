@@ -27,6 +27,16 @@ Optional: `ALLOWED_TELEGRAM_CHAT_ID`, `WISE_API_TOKEN`, `WISE_PROFILE_ID`, `FINA
 
 See [sql/INSTRUCTIONS.md](sql/INSTRUCTIONS.md). Run the unique constraint SQL once for idempotent Wise sync.
 
+## Docker
+
+```bash
+cp .env.example .env
+# fill required vars
+docker compose up -d --build
+```
+
+Uses long-polling (no published ports). Logs: `docker compose logs -f bot`.
+
 ## Scripts
 
 ```bash
