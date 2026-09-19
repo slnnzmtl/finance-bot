@@ -1,0 +1,46 @@
+{
+  "expenseTable": "public.expense",
+  "expenseColumns": ["id", "name", "amount", "category", "paid_date", "paid", "note"],
+  "categoryTable": "public.category",
+  "categoryJoin": "LEFT JOIN public.category AS c ON e.category = c.id",
+  "dateRules": [
+    "Use TODAY and YESTERDAY from system metadata as literal YYYY-MM-DD bounds in SQL",
+    "Never use SQLite helpers like date('now', '-1 day')"
+  ],
+  "writeRules": [
+    "category stores public.category.id, never a category name string",
+    "Updates and deletes must target rows by id only after a narrow SELECT"
+  ],
+  "categories": [
+    { "id": 35, "name": "Transport", "keywords": ["Uber", "Lyft", "Taxi", "Bolt"] },
+    { "id": 33, "name": "Shop", "keywords": ["mark", "market", "shop", "store", "supermarket", "mart", "Moonmilk"] },
+    { "id": 4, "name": "Food", "keywords": ["Grab", "cafe", "food", "bistro", "restaurant", "bakery", "ca phe", "Divinecrepes"] },
+    { "id": 17, "name": "Software", "keywords": ["github", "aws", "google", "openai", "netflix", "cursor", "hetzner"] },
+    { "id": 36, "name": "Coffee", "keywords": ["coffee", "ommo", "Roastery", "caffein"] }
+  ],
+  "overrides": [
+    {
+      "rule": "Grab",
+      "when": "name contains Grab and amount <= 1.50",
+      "categoryId": 35,
+      "categoryName": "Transport"
+    },
+    {
+      "rule": "Grab",
+      "when": "name contains Grab and amount > 1.50",
+      "categoryId": 4,
+      "categoryName": "Food"
+    },
+    {
+      "rule": "Tokens",
+      "when": "name contains google or openai",
+      "note": "Prefer Tokens category if present in public.category; otherwise Software (17)"
+    }
+  ],
+  "categoryMatching": [
+    "Load categories with: SELECT id, name, note FROM public.category;",
+    "Always assign a category. Set category = NULL only when no match is possible",
+    "Use semantic context as a fallback when no keyword hits",
+    "Otherwise ask the user to confirm the category"
+  ]
+}

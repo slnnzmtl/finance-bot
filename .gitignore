@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.pnpm-store/
+
+# Secrets (keep .env.example tracked)
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store
