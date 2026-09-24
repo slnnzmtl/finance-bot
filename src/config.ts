@@ -3,6 +3,8 @@ const DEFAULT_MCP_MAX_RECONNECT_ATTEMPTS = 1;
 const DEFAULT_MCP_RECONNECT_BASE_DELAY_MS = 0;
 const DEFAULT_MCP_RECONNECT_MAX_DELAY_MS = 5_000;
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
+const DEFAULT_FINANCE_SYNC_HOUR = 8;
+const DEFAULT_FINANCE_SYNC_MINUTE = 0;
 
 const REQUIRED_ENV_VARS = [
   "TELEGRAM_BOT_TOKEN",
@@ -29,6 +31,9 @@ export type AppConfig = {
   mcpReconnectMaxDelayMs: number;
   wiseApiToken?: string | undefined;
   wiseProfileId?: string | undefined;
+  financeSyncEnabled: boolean;
+  financeSyncHour: number;
+  financeSyncMinute: number;
   maxSteps: number;
   dataDir: string;
 };
@@ -57,6 +62,33 @@ const normalizeMcpReconnectDelays = (
   maxDelayMs: Math.max(baseDelayMs, maxDelayMs),
 });
 
+const parseBooleanEnv = (raw: string | undefined, defaultValue: boolean): boolean => {
+  if (!raw) {
+    return defaultValue;
+  }
+  const normalized = raw.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return defaultValue;
+};
+
+export const parseFinanceSyncAt = (
+  value: string | undefined,
+): { hour: number; minute: number } => {
+  const match = value?.trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (!match) {
+    return { hour: DEFAULT_FINANCE_SYNC_HOUR, minute: DEFAULT_FINANCE_SYNC_MINUTE };
+  }
+  return {
+    hour: Number.parseInt(match[1] ?? "", 10),
+    minute: Number.parseInt(match[2] ?? "", 10),
+  };
+};
+
 export const normalizeAppTimezone = (value: string | undefined): string => {
   const candidate = value?.trim();
   if (!candidate) {
@@ -83,6 +115,10 @@ export const loadConfig = (): AppConfig => {
   const normalized = normalizeMcpReconnectDelays(mcpReconnectBaseDelayMs, mcpReconnectMaxDelayMs);
   const allowedTelegramUserId = getRequiredEnv("ALLOWED_TELEGRAM_USER_ID");
   const allowedTelegramChatId = process.env.ALLOWED_TELEGRAM_CHAT_ID?.trim() || allowedTelegramUserId;
+  const wiseApiToken = process.env.WISE_API_TOKEN;
+  const wiseProfileId = process.env.WISE_PROFILE_ID;
+  const wiseConfigured = Boolean(wiseApiToken && wiseProfileId);
+  const financeSyncAt = parseFinanceSyncAt(process.env.FINANCE_SYNC_AT);
 
   return {
     telegramBotToken: getRequiredEnv("TELEGRAM_BOT_TOKEN"),
@@ -100,8 +136,11 @@ export const loadConfig = (): AppConfig => {
     ),
     mcpReconnectBaseDelayMs: normalized.baseDelayMs,
     mcpReconnectMaxDelayMs: normalized.maxDelayMs,
-    wiseApiToken: process.env.WISE_API_TOKEN,
-    wiseProfileId: process.env.WISE_PROFILE_ID,
+    wiseApiToken,
+    wiseProfileId,
+    financeSyncEnabled: parseBooleanEnv(process.env.FINANCE_SYNC_ENABLED, wiseConfigured),
+    financeSyncHour: financeSyncAt.hour,
+    financeSyncMinute: financeSyncAt.minute,
     maxSteps: 10,
     dataDir: process.env.DATA_DIR ?? "data",
   };

@@ -64,8 +64,8 @@ export const createFinanceTools = (
         name: "fetch_wise_transactions",
         description: "Fetch transactions from the Wise API for a date range",
         schema: z.object({
-          since: z.string().describe("Start date (ISO 8601)"),
-          until: z.string().describe("End date (ISO 8601)"),
+          since: z.string().describe("Start date and time 2026-01-01T00:00:00Z (ISO 8601)"),
+          until: z.string().describe("End date and time 2026-01-01T23:59:59Z (ISO 8601)"),
         }),
       },
     ),

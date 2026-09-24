@@ -21,7 +21,7 @@ pnpm dev
 | `SUPABASE_PROJECT_REF` | Supabase project ref for MCP |
 | `SUPABASE_ACCESS_TOKEN` | Supabase personal access token |
 
-Optional: `ALLOWED_TELEGRAM_CHAT_ID`, `WISE_API_TOKEN`, `WISE_PROFILE_ID`, `FINANCE_MODEL`, `APP_TIMEZONE`, MCP reconnect knobs, LangSmith.
+Optional: `ALLOWED_TELEGRAM_CHAT_ID`, `WISE_API_TOKEN`, `WISE_PROFILE_ID`, `FINANCE_MODEL`, `APP_TIMEZONE`, `FINANCE_SYNC_ENABLED`, `FINANCE_SYNC_AT` (default `08:00` in `APP_TIMEZONE` when Wise is configured), MCP reconnect knobs, LangSmith.
 
 ## Database
 
@@ -51,4 +51,5 @@ pnpm build && pnpm start
 - `src/graph.ts` — LLM ⇄ tools loop (MemorySaver, `thread_id` = chat id)
 - `src/tools.ts` — `exec_sql`, optional `fetch_wise_transactions`
 - `src/telegram.ts` — text-only Telegraf adapter
+- `src/scheduler.ts` — in-process daily Wise sync → Telegram
 - `data/prompt.md` + `data/ledger.json` — system instructions

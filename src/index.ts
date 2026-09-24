@@ -9,6 +9,7 @@ import { createFinanceGraph, type CompiledFinanceGraph } from "./graph.js";
 import { setupSupabaseWriteSession } from "./integrations/supabase.js";
 import { createFetchWiseTransactions } from "./integrations/wise.js";
 import type { SqlSession } from "./integrations/mcp/sql-session.js";
+import { createDailyScheduler, type DailyScheduler } from "./scheduler.js";
 import { TelegramAdapter } from "./telegram.js";
 import { createFinanceTools } from "./tools.js";
 
@@ -16,6 +17,7 @@ export type FinanceBotApp = {
   telegramAdapter: TelegramAdapter;
   sqlSession: SqlSession;
   getGraph: () => CompiledFinanceGraph;
+  scheduler?: DailyScheduler;
   shutdown: () => Promise<void>;
 };
 
@@ -61,11 +63,27 @@ export const createApp = async (): Promise<FinanceBotApp> => {
     },
   );
 
+  const scheduler =
+    config.financeSyncEnabled && fetchWise
+      ? createDailyScheduler({
+          timezone: config.appTimezone,
+          hour: config.financeSyncHour,
+          minute: config.financeSyncMinute,
+          run: () => telegramAdapter.processScheduledSync(),
+        })
+      : undefined;
+
+  if (config.financeSyncEnabled && !fetchWise) {
+    console.warn("Finance sync is enabled but Wise is not configured; scheduler will not start.");
+  }
+
   return {
     telegramAdapter,
     sqlSession,
     getGraph: () => graph,
+    ...(scheduler ? { scheduler } : {}),
     shutdown: async () => {
+      scheduler?.stop();
       await telegramAdapter.stop();
       await sqlSession.close();
     },
@@ -88,6 +106,7 @@ const main = async (): Promise<void> => {
   });
 
   console.log("Finance bot starting (Telegram long-polling)...");
+  app.scheduler?.start();
   await app.telegramAdapter.launch();
   console.log("Finance bot launched.");
 };

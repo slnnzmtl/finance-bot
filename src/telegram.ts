@@ -121,6 +121,9 @@ const sendChunk = async (telegram: Context["telegram"], chatId: number, chunk: s
   }
 };
 
+export const FINANCE_SYNC_PROMPT =
+  "Sync Wise transactions for YESTERDAY. Import completed outward transfers into public.expense. Skip withdrawals. Report insert count and date range only after INSERT returns. If there is nothing new, say so.";
+
 const MAX_TRACKED_UPDATE_IDS = 1_000;
 const MAX_CHECKPOINT_MESSAGES = 40;
 
@@ -208,31 +211,63 @@ export class TelegramAdapter {
   }
 
   async sendOutbound(ctx: Context, stateMessages: BaseMessage[]): Promise<void> {
-    const lastMessage = stateMessages[stateMessages.length - 1];
     const chatId = ctx.chat?.id;
-
     if (!chatId) {
       console.error("Unable to determine chat ID for outbound message.");
       return;
     }
+    await this.sendMessagesToChat(chatId, stateMessages);
+  }
+
+  async sendMessagesToChat(chatId: number, stateMessages: BaseMessage[]): Promise<void> {
+    const lastMessage = stateMessages[stateMessages.length - 1];
 
     if (!lastMessage) {
-      await ctx.telegram.sendMessage(chatId, "System Error: No response was produced.");
+      await this.bot.telegram.sendMessage(chatId, "System Error: No response was produced.");
       return;
     }
 
     const output = extractTelegramMessageText(lastMessage.content).trim();
 
     if (!output) {
-      await ctx.telegram.sendMessage(chatId, "System Error: Empty response from agent.");
+      await this.bot.telegram.sendMessage(chatId, "System Error: Empty response from agent.");
       return;
     }
 
     logTelegramMessage("bot", output);
 
     for (const chunk of splitMessage(output)) {
-      await sendChunk(ctx.telegram, chatId, chunk);
+      await sendChunk(this.bot.telegram, chatId, chunk);
     }
+  }
+
+  async processScheduledSync(prompt = FINANCE_SYNC_PROMPT): Promise<void> {
+    const chatId = Number(this.allowedTelegramChatId);
+    if (!Number.isFinite(chatId)) {
+      console.error("Unable to determine Telegram chat ID for scheduled finance sync.");
+      return;
+    }
+
+    const threadId = String(chatId);
+    logTelegramMessage("user", prompt);
+
+    await this.runExclusiveForThread(threadId, async () => {
+      try {
+        const finalState = await this.triggerWorkflow(new HumanMessage(prompt), threadId);
+        await this.sendMessagesToChat(chatId, finalState.messages);
+      } catch (error) {
+        if (error instanceof GraphRecursionError) {
+          console.error("Scheduled finance sync recursion limit reached:", error);
+          await this.bot.telegram.sendMessage(
+            chatId,
+            "Scheduled Wise sync got stuck in a loop. Please try a manual sync.",
+          );
+        } else {
+          console.error("Scheduled finance sync error:", error);
+          await this.bot.telegram.sendMessage(chatId, "Scheduled Wise sync failed.");
+        }
+      }
+    });
   }
 
   async processInboundMessage(ctx: Context, inboundMessage: HumanMessage): Promise<void> {

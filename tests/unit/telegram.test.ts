@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import type { Context } from "telegraf";
+import type { Telegraf } from "telegraf";
 
 import {
+  FINANCE_SYNC_PROMPT,
   formatTelegramMarkdownV2,
   splitMessage,
   TelegramAdapter,
@@ -53,5 +56,38 @@ describe("telegram helpers", () => {
     expect(chunks.length).toBe(2);
     expect(chunks[0]?.length).toBeLessThanOrEqual(4096);
     expect(chunks[1]?.length).toBeLessThanOrEqual(4096);
+  });
+
+  it("runs scheduled Wise sync on the allowed chat and sends the graph reply", async () => {
+    const invoke = vi.fn().mockResolvedValue({
+      messages: [new HumanMessage(FINANCE_SYNC_PROMPT), new AIMessage("Synced 2 expenses for 2026-09-19.")],
+    });
+    const getState = vi.fn().mockResolvedValue({ values: { messages: [] } });
+    const sendMessage = vi.fn().mockResolvedValue({});
+    const bot = { telegram: { sendMessage }, stop: vi.fn() } as unknown as Telegraf<Context>;
+
+    const adapter = new TelegramAdapter(
+      { getGraph: () => ({ invoke, getState, updateState: vi.fn() }) as never },
+      {
+        telegramBotToken: "token",
+        allowedTelegramUserId: "100",
+        allowedTelegramChatId: "200",
+      },
+      bot,
+    );
+
+    await adapter.processScheduledSync();
+
+    expect(invoke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [expect.any(HumanMessage)],
+      }),
+      expect.objectContaining({ configurable: { thread_id: "200" } }),
+    );
+    expect(sendMessage).toHaveBeenCalledWith(
+      200,
+      expect.stringContaining("Synced 2 expenses"),
+      expect.objectContaining({ parse_mode: "MarkdownV2" }),
+    );
   });
 });
