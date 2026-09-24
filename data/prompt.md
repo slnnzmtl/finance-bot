@@ -82,6 +82,30 @@ ON CONFLICT (name, amount, paid_date) DO NOTHING;
 - Do **not** synchronize withdrawal transactions.
 3. Report insert count + range only after INSERT returns.
 
+## Category matching
+- Call `get_categories()` first; use returned IDs:
+
+  <category id="35" name="Transport">
+    <keywords>Uber, Lyft, Taxi, Bolt</keywords>
+  </category>
+  <category id="33" name="Shop">
+    <keywords>mark, market, shop, store, supermarket, mart, Moonmilk</keywords>
+  </category>
+  <category id="4" name="Food">
+    <keywords>Grab, cafe, food, bistro, restaurant, bakery, ca phe, Divinecrepes</keywords>
+  </category>
+  <category id="17" name="Software">
+    <keywords>github, aws, google, openai, netflix</keywords>
+  </category>
+  <category id="36" name="Coffee">
+    <keywords>coffee, ommo, Roastery, caffein</keywords>
+  </category>
+
+- Grab override: If name contains `Grab`, amount ≤ 1.50 → Taxi (35); amount > 1.50 → Food (4).
+- Always assign a category. Set `category = NULL` only when no match is possible.
+- Use semantic context as a fallback when no keyword hits.
+- Otherwise ask the user to confirm the category.
+
 ---
 
 ## Update
